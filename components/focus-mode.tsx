@@ -36,16 +36,14 @@ export default function FocusMode({ onClose }: { onClose: () => void }) {
       className={`fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br ${bg} p-6 backdrop-blur-xl transition-colors`}
     >
       <div
-        className={`w-full max-w-2xl text-center rounded-2xl shadow-2xl border ${
-          dark ? "border-white/10 bg-white/10" : "border-slate-200 bg-white/70"
-        } p-10 relative`}
+        className={`w-full max-w-2xl text-center rounded-2xl shadow-2xl border ${dark ? "border-white/10 bg-white/10" : "border-slate-200 bg-white/70"
+          } p-10 relative`}
       >
         {/* Botão modo claro/escuro */}
         <button
           onClick={() => setDark(!dark)}
-          className={`absolute top-5 right-5 p-2 rounded-full transition ${
-            dark ? "bg-white/10 hover:bg-white/20" : "bg-slate-200 hover:bg-slate-300"
-          }`}
+          className={`absolute top-5 right-5 p-2 rounded-full transition ${dark ? "bg-white/10 hover:bg-white/20" : "bg-slate-200 hover:bg-slate-300"
+            }`}
         >
           {dark ? <Sun size={20} /> : <Moon size={20} />}
         </button>
@@ -89,11 +87,10 @@ export default function FocusMode({ onClose }: { onClose: () => void }) {
                   <button
                     key={label}
                     onClick={() => select("humor", label)}
-                    className={`p-4 rounded-xl border ${
-                      dark
+                    className={`p-4 rounded-xl border ${dark
                         ? "border-white/20 hover:bg-white/10"
                         : "border-slate-300 hover:bg-slate-200"
-                    } transition w-28`}
+                      } transition w-28`}
                   >
                     <Icon size={36} className="mx-auto" />
                     <p className="mt-2">{label}</p>
@@ -113,11 +110,10 @@ export default function FocusMode({ onClose }: { onClose: () => void }) {
                     <button
                       key={item}
                       onClick={() => select("energia", item)}
-                      className={`px-5 py-2 rounded-full border ${
-                        dark
+                      className={`px-5 py-2 rounded-full border ${dark
                           ? "border-white/20 hover:bg-white/10"
                           : "border-slate-300 hover:bg-slate-200"
-                      } transition`}
+                        } transition`}
                     >
                       {item}
                     </button>
@@ -141,11 +137,10 @@ export default function FocusMode({ onClose }: { onClose: () => void }) {
                   <button
                     key={label}
                     onClick={() => select("ambiente", label)}
-                    className={`flex flex-col items-center gap-2 p-5 rounded-xl border ${
-                      dark
+                    className={`flex flex-col items-center gap-2 p-5 rounded-xl border ${dark
                         ? "border-white/20 hover:bg-white/10"
                         : "border-slate-300 hover:bg-slate-200"
-                    } transition`}
+                      } transition`}
                   >
                     <Icon size={36} />
                     <p>{label}</p>
@@ -164,11 +159,10 @@ export default function FocusMode({ onClose }: { onClose: () => void }) {
                   <button
                     key={item}
                     onClick={() => select("cargo", item)}
-                    className={`p-4 rounded-xl border ${
-                      dark
+                    className={`p-4 rounded-xl border ${dark
                         ? "border-white/20 hover:bg-white/10"
                         : "border-slate-300 hover:bg-slate-200"
-                    } transition`}
+                      } transition`}
                   >
                     {item}
                   </button>
@@ -191,9 +185,8 @@ export default function FocusMode({ onClose }: { onClose: () => void }) {
                 ].map(({ icon: Icon, label }) => (
                   <div
                     key={label}
-                    className={`flex items-center gap-3 p-3 rounded-xl ${
-                      dark ? "bg-white/10" : "bg-slate-200/80"
-                    }`}
+                    className={`flex items-center gap-3 p-3 rounded-xl ${dark ? "bg-white/10" : "bg-slate-200/80"
+                      }`}
                   >
                     <Icon size={22} />
                     <p>{label}</p>
@@ -215,21 +208,20 @@ export default function FocusMode({ onClose }: { onClose: () => void }) {
               <h2 className="text-2xl font-semibold mb-4">Se o seu dia tivesse uma cor, qual seria?</h2>
               <div className="flex justify-center gap-6">
                 {[
-  { colorClass: "bg-sky-500", label: "Tranquilo" },
-  { colorClass: "bg-amber-400", label: "Agitado" },
-  { colorClass: "bg-rose-500", label: "Estressante" },
-  { colorClass: "bg-emerald-500", label: "Produtivo" },
-].map(({ colorClass, label }) => (
- <button
-  key={label}
-  onClick={() => select("cor do dia", { label, colorClass })}
-  className={`w-16 h-16 rounded-full ${colorClass} hover:scale-110 transition border-2 ${
-    dark ? "border-white/50" : "border-black/20"
-  } flex items-center justify-center`}
-  title={label}
-/>
-
-))}
+                  { color: "#0ea5e9", label: "Tranquilo" },
+                  { color: "#fbbf24", label: "Agitado" },
+                  { color: "#f43f5e", label: "Estressante" },
+                  { color: "#10b981", label: "Produtivo" },
+                ].map(({ color, label }) => (
+                  <button
+                    key={label}
+                    onClick={() => select("cor do dia", { label, color })}
+                    style={{ backgroundColor: color }}
+                    className={`w-16 h-16 rounded-full hover:scale-110 transition border-2 ${dark ? "border-white/50" : "border-black/20"
+                      } flex items-center justify-center`}
+                    title={label}
+                  />
+                ))}
 
               </div>
             </motion.div>
@@ -256,23 +248,23 @@ export default function FocusMode({ onClose }: { onClose: () => void }) {
                 Aqui está um resumo do seu momento atual:
               </p>
               <div
-                className={`text-left rounded-xl p-4 ${
-                  dark ? "bg-white/10" : "bg-slate-200/60"
-                } mb-6 space-y-2`}
+                className={`text-left rounded-xl p-4 ${dark ? "bg-white/10" : "bg-slate-200/60"
+                  } mb-6 space-y-2`}
               >
                 {Object.entries(answers).map(([k, v]: [string, any]) => (
                   <div key={k} className="capitalize flex justify-between items-center gap-2">
                     <span className="opacity-70 font-medium">{k}</span>
                     {k === "cor do dia" && v ? (
-  <div className="flex items-center gap-2">
-    <span
-      className={`w-6 h-6 rounded-full ${v.colorClass} border border-white/50`}
-    ></span>
-    <span className="font-semibold">{v.label}</span>
-  </div>
-) : (
-  <span className="font-semibold">{v ?? "Não respondido"}</span>
-)}
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="w-6 h-6 rounded-full border border-white/50"
+                          style={{ backgroundColor: v.color }}
+                        ></span>
+                        <span className="font-semibold">{v.label}</span>
+                      </div>
+                    ) : (
+                      <span className="font-semibold">{v ?? "Não respondido"}</span>
+                    )}
 
                   </div>
                 ))}
