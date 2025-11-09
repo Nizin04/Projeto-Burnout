@@ -13,16 +13,25 @@ export interface EmployeeSession {
   expiresAt: Date
 }
 
+// ----- Storage helpers -----
 function getStoredUsers(): User[] {
   if (typeof window === "undefined") return []
-  const stored = localStorage.getItem("mockUsers")
-  return stored ? JSON.parse(stored) : []
+  try {
+    const stored = localStorage.getItem("mockUsers")
+    return stored ? JSON.parse(stored) : []
+  } catch {
+    return []
+  }
 }
 
 function getStoredSessions(): EmployeeSession[] {
   if (typeof window === "undefined") return []
-  const stored = localStorage.getItem("mockSessions")
-  return stored ? JSON.parse(stored) : []
+  try {
+    const stored = localStorage.getItem("mockSessions")
+    return stored ? JSON.parse(stored) : []
+  } catch {
+    return []
+  }
 }
 
 function saveUsers(users: User[]): void {
@@ -37,8 +46,12 @@ function saveSessions(sessions: EmployeeSession[]): void {
   }
 }
 
+// ----- Core auth -----
 export function generateVerificationToken(): string {
-  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
+  return (
+    Math.random().toString(36).substring(2, 15) +
+    Math.random().toString(36).substring(2, 15)
+  )
 }
 
 export function isValidEmail(email: string): boolean {
@@ -47,20 +60,14 @@ export function isValidEmail(email: string): boolean {
 }
 
 export function createEmployeeUser(name: string, email: string): User | null {
-  if (!name.trim() || !email.trim()) {
-    return null
-  }
-
-  if (!isValidEmail(email)) {
-    return null
-  }
+  if (!name.trim() || !email.trim()) return null
+  if (!isValidEmail(email)) return null
 
   const users = getStoredUsers()
-
-  const existingUser = users.find((u) => u.email.toLowerCase() === email.toLowerCase())
-  if (existingUser) {
-    return existingUser
-  }
+  const existingUser = users.find(
+    (u) => u.email.toLowerCase() === email.toLowerCase()
+  )
+  if (existingUser) return existingUser
 
   const user: User = {
     id: Math.random().toString(36).substring(2, 15),
@@ -75,24 +82,26 @@ export function createEmployeeUser(name: string, email: string): User | null {
 }
 
 export function createEmployeeSession(user: User): EmployeeSession {
-  const sessions = getStoredSessions()
-
-  const filteredSessions = sessions.filter((s) => s.user.id !== user.id)
+  const sessions = getStoredSessions().filter((s) => s.user.id !== user.id)
 
   const session: EmployeeSession = {
     user,
     verificationToken: generateVerificationToken(),
-    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24h
   }
 
-  filteredSessions.push(session)
-  saveSessions(filteredSessions)
+  sessions.push(session)
+  saveSessions(sessions)
   return session
 }
 
 export function verifyEmployeeToken(token: string): User | null {
   const sessions = getStoredSessions()
-  const session = sessions.find((s) => s.verificationToken === token && new Date(s.expiresAt) > new Date())
+  const session = sessions.find(
+    (s) =>
+      s.verificationToken === token &&
+      new Date(s.expiresAt) > new Date()
+  )
 
   if (session) {
     session.user.verifiedAt = new Date()
@@ -106,6 +115,7 @@ export function verifyEmployeeToken(token: string): User | null {
 
     return session.user
   }
+
   return null
 }
 
@@ -115,12 +125,13 @@ export function verifyAdminCode(code: string): boolean {
 }
 
 export function getCurrentUser(): User | null {
-  // In a real app, this would check session/cookies
-  if (typeof window !== "undefined") {
+  if (typeof window === "undefined") return null
+  try {
     const userData = localStorage.getItem("currentUser")
     return userData ? JSON.parse(userData) : null
+  } catch {
+    return null
   }
-  return null
 }
 
 export function setCurrentUser(user: User): void {
@@ -132,5 +143,16 @@ export function setCurrentUser(user: User): void {
 export function logout(): void {
   if (typeof window !== "undefined") {
     localStorage.removeItem("currentUser")
+  }
+}
+
+// ✅ NOVA FUNÇÃO — retorna todos os usuários salvos
+export function getUsers(): User[] {
+  if (typeof window === "undefined") return []
+  try {
+    const stored = localStorage.getItem("mockUsers")
+    return stored ? JSON.parse(stored) : []
+  } catch {
+    return []
   }
 }

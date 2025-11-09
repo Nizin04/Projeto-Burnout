@@ -41,54 +41,102 @@ export function AdminDashboard() {
     refreshData()
   }
 
-  // 📤 Exporta CSV com colunas traduzidas
-  const exportToCSV = () => {
+  // 📤 Exporta Excel (.xlsx) com cabeçalho colorido + resumo
+  // OBS: removi as colunas "ID" e "Usuário" conforme pedido
+  const exportToExcel = () => {
     if (!feedbacks || feedbacks.length === 0) {
       alert("Não há dados para exportar.")
       return
     }
 
-    const headers = [
-      "ID",
-      "Usuário",
-      "Data de Envio",
-      "Nível de Estresse",
-      "Equilíbrio Vida-Trabalho",
-      "Satisfação no Trabalho",
-      "Bem-estar Mental",
-      "Qualidade do Sono",
-      "Sintomas Físicos",
-      "Reconhecimento",
-      "Sugestões de Melhoria",
-      "Comentários"
-    ]
+    import("xlsx").then(XLSX => {
+      // Cabeçalhos sem ID e Usuário
+      const headers = [
+        "Data de Envio",
+        "Nível de Estresse",
+        "Equilíbrio Vida-Trabalho",
+        "Satisfação no Trabalho",
+        "Bem-estar Mental",
+        "Qualidade do Sono",
+        "Sintomas Físicos",
+        "Reconhecimento",
+        "Sugestões de Melhoria",
+        "Comentários"
+      ]
 
-    const rows = feedbacks.map(f => [
-      f.id,
-      f.userId,
-      new Date(f.submittedAt).toLocaleDateString("pt-BR"),
-      f.responses.stressLevel,
-      f.responses.workLifeBalance,
-      f.responses.jobSatisfaction,
-      f.responses.mentalWellbeing,
-      f.responses.sleepQuality,
-      (f.responses.physicalSymptoms || []).join(" | "),
-      f.responses.recognition,
-      f.responses.improvements,
-      f.responses.additionalComments
-    ])
+      // Monta as linhas com segurança (fallbacks) e sem colunas de id/usuário
+      const rows = feedbacks.map(f => ({
+        "Data de Envio": f.submittedAt ? new Date(f.submittedAt).toLocaleDateString("pt-BR") : "",
+        "Nível de Estresse": f.responses?.stressLevel ?? "",
+        "Equilíbrio Vida-Trabalho": f.responses?.workLifeBalance ?? "",
+        "Satisfação no Trabalho": f.responses?.jobSatisfaction ?? "",
+        "Bem-estar Mental": f.responses?.mentalWellbeing ?? "",
+        "Qualidade do Sono": f.responses?.sleepQuality ?? "",
+        "Sintomas Físicos": (f.responses?.physicalSymptoms || []).join(" | "),
+        "Reconhecimento": f.responses?.recognition ?? "",
+        "Sugestões de Melhoria": f.responses?.improvements ?? "",
+        "Comentários": f.responses?.additionalComments ?? ""
+      }))
 
-    const csvContent = [headers, ...rows]
-      .map(row => row.map(value => `"${String(value ?? "").replace(/"/g, '""')}"`).join(","))
-      .join("\n")
+      // Resumo que fica no topo da planilha
+      const summary = [
+        ["Resumo de Bem-estar"],
+        ["Total de Respostas", stats?.totalResponses ?? rows.length],
+        ["Risco de Burnout (%)", stats?.burnoutRisk ?? ""],
+        ["Média de Estresse", stats?.averageStress ?? ""],
+        ["Satisfação Média", stats?.satisfactionScore ?? ""],
+        []
+      ]
 
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = "feedbacks_bemestar.csv"
-    a.click()
-    URL.revokeObjectURL(url)
+      // Cria worksheet a partir do summary (AOA)
+      const worksheet = XLSX.utils.aoa_to_sheet(summary)
+
+      // Adiciona os dados a partir da linha 8 (índice A8)
+      XLSX.utils.sheet_add_json(worksheet, rows, {
+        origin: "A8",
+        header: headers,
+        skipHeader: false
+      })
+
+      // Ajusta o range e aplica estilo no cabeçalho (linha 8 => r = 7)
+      const range = XLSX.utils.decode_range(worksheet["!ref"]!)
+      const headerRowIndex = 7 // 0-indexed, linha 8 visual
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        const cellAddress = XLSX.utils.encode_cell({ r: headerRowIndex, c: C })
+        if (!worksheet[cellAddress]) continue
+        // estilo básico do cabeçalho: azul escuro e texto branco, negrito, centralizado
+        worksheet[cellAddress].s = {
+          fill: { fgColor: { rgb: "1E3A8A" } },
+          font: { color: { rgb: "FFFFFF" }, bold: true },
+          alignment: { horizontal: "center", vertical: "center", wrapText: true }
+        }
+      }
+
+      // Larguras mais compactas (menos espaçamento)
+      // Defina um array com larguras menores para evitar 'muito espaçado'
+      worksheet["!cols"] = [
+        { wch: 16 }, // Data de Envio
+        { wch: 18 }, // Nível de Estresse
+        { wch: 18 }, // Equilíbrio Vida-Trabalho
+        { wch: 18 }, // Satisfação no Trabalho
+        { wch: 18 }, // Bem-estar Mental
+        { wch: 16 }, // Qualidade do Sono
+        { wch: 30 }, // Sintomas Físicos (pode ser maior)
+        { wch: 16 }, // Reconhecimento
+        { wch: 30 }, // Sugestões de Melhoria
+        { wch: 30 }  // Comentários
+      ]
+
+      // Cria workbook e adiciona a aba "Feedbacks"
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Feedbacks")
+
+      // Escreve o arquivo
+      XLSX.writeFile(workbook, "feedbacks_bemestar.xlsx", { compression: true })
+    }).catch(err => {
+      console.error("Erro ao gerar Excel:", err)
+      alert("Ocorreu um erro ao gerar o arquivo Excel. Verifique o console.")
+    })
   }
 
   useEffect(() => {
@@ -114,9 +162,9 @@ export function AdminDashboard() {
             <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
             {isLoading ? "Atualizando..." : "Atualizar"}
           </Button>
-          <Button variant="default" onClick={exportToCSV} disabled={feedbacks.length === 0}>
+          <Button variant="default" onClick={exportToExcel} disabled={feedbacks.length === 0}>
             <Download className="w-4 h-4 mr-2" />
-            Exportar CSV
+            Exportar Excel
           </Button>
         </div>
       </div>
@@ -144,7 +192,6 @@ export function AdminDashboard() {
             Insights
           </TabsTrigger>
         </TabsList>
-        
 
         {/* Conteúdo principal */}
         <TabsContent value="overview" className="space-y-6">
