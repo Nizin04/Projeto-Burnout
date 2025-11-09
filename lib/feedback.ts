@@ -147,6 +147,93 @@ export function getFeedbackStats() {
   }
 }
 
+// ✅ NOVO TRECHO — Obter feedbacks de um usuário específico
+export function getFeedbacksByUser(userId: string) {
+  const all = getAllFeedbacks()
+  return all
+    .filter((f) => f.userId === userId)
+    .sort(
+      (a, b) =>
+        new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
+    )
+}
+
+// ✅ NOVO TRECHO — Analisar métricas do usuário
+export function analyzeUserFeedbacks(feedbacks: FeedbackResponse[]) {
+  if (!feedbacks || feedbacks.length === 0) {
+    return {
+      totalResponses: 0,
+      averageStress: 0,
+      burnoutRisk: 0,
+      satisfactionScore: 0,
+    }
+  }
+
+  const stressMapping: Record<string, number> = {
+    "muito-baixo": 1,
+    baixo: 2,
+    moderado: 3,
+    alto: 4,
+    "muito-alto": 5,
+  }
+
+  const satisfactionMapping: Record<string, number> = {
+    "muito-satisfeito": 5,
+    satisfeito: 4,
+    neutro: 3,
+    insatisfeito: 2,
+    "muito-insatisfeito": 1,
+  }
+
+  const stressVals = feedbacks.map(
+    (f) => stressMapping[f.responses.stressLevel] ?? 3
+  )
+  const satisfactionVals = feedbacks.map(
+    (f) => satisfactionMapping[f.responses.jobSatisfaction] ?? 3
+  )
+
+  const avgStress =
+    Math.round(
+      (stressVals.reduce((a, b) => a + b, 0) / stressVals.length) * 10
+    ) / 10
+  const avgSatisfaction =
+    Math.round(
+      (satisfactionVals.reduce((a, b) => a + b, 0) / satisfactionVals.length) *
+        10
+    ) / 10
+
+  // Regra simples para risco de burnout
+  const highStressCount = feedbacks.filter(
+    (f) => (stressMapping[f.responses.stressLevel] ?? 3) >= 4
+  ).length
+
+  const symptomaticCount = feedbacks.filter((f) => {
+    const physical = f.responses.physicalSymptoms || []
+    const mental = f.responses.mentalWellbeing || ""
+    const sleep = f.responses.sleepQuality || ""
+    return (
+      physical.length > 0 ||
+      /ruim|precis|baixo|regular/i.test(mental) ||
+      /ruim|pobre|insuficiente/i.test(sleep)
+    )
+  }).length
+
+  let riskScore = Math.round(
+    ((highStressCount * 1.2 + symptomaticCount * 0.8) / feedbacks.length) * 100
+  )
+
+  if (riskScore < 5)
+    riskScore = Math.max(riskScore, Math.round((avgStress / 5) * 10))
+  if (riskScore > 100) riskScore = 100
+
+  return {
+    totalResponses: feedbacks.length,
+    averageStress: avgStress,
+    burnoutRisk: riskScore,
+    satisfactionScore: avgSatisfaction,
+  }
+}
+
 // ✅ NOVO TRECHO — Exportar feedbacks para CSV
 export function exportFeedbacksToCSV(): string {
   const feedbacks = getAllFeedbacks()
