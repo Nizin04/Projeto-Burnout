@@ -1,20 +1,47 @@
 "use client"
 
+// source zip (referência): /mnt/data/Burnout.zip
+
 import { useEffect, useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Users, AlertTriangle, Heart, BarChart3, PieChart, Activity, RefreshCw, Download } from "lucide-react"
-import { getAllFeedbacks, getFeedbackStats, generateSampleData } from "@/lib/feedback"
+import {
+  Users,
+  AlertTriangle,
+  Heart,
+  BarChart3,
+  PieChart,
+  Activity,
+  RefreshCw,
+  Download,
+  BarChart
+} from "lucide-react"
+import {
+  getAllFeedbacks,
+  getFeedbackStats,
+  generateSampleData
+} from "@/lib/feedback"
 import { StatsOverview } from "@/components/stats-overview"
 import { FeedbackCharts } from "@/components/feedback-charts"
 import { FeedbackTable } from "@/components/feedback-table"
+import InterventionSimulator from "@/components/intervention-simulator" // default export expected
+import Heatmap from "@/components/heatmap" // heatmap import (component separado)
 
 export function AdminDashboard() {
   const [feedbacks, setFeedbacks] = useState<any[]>([])
-  const [stats, setStats] = useState(getFeedbackStats())
+  const [stats, setStats] = useState<any>(() => getFeedbackStats())
   const [isLoading, setIsLoading] = useState(false)
+
+  // modal state
+  const [isSimulatorOpen, setIsSimulatorOpen] = useState(false)
 
   // 🔄 Atualiza os dados
   const refreshData = () => {
@@ -42,7 +69,6 @@ export function AdminDashboard() {
   }
 
   // 📤 Exporta Excel (.xlsx) com cabeçalho colorido + resumo
-  // OBS: removi as colunas "ID" e "Usuário" conforme pedido
   const exportToExcel = () => {
     if (!feedbacks || feedbacks.length === 0) {
       alert("Não há dados para exportar.")
@@ -50,7 +76,6 @@ export function AdminDashboard() {
     }
 
     import("xlsx").then(XLSX => {
-      // Cabeçalhos sem ID e Usuário
       const headers = [
         "Data de Envio",
         "Nível de Estresse",
@@ -64,7 +89,6 @@ export function AdminDashboard() {
         "Comentários"
       ]
 
-      // Monta as linhas com segurança (fallbacks) e sem colunas de id/usuário
       const rows = feedbacks.map(f => ({
         "Data de Envio": f.submittedAt ? new Date(f.submittedAt).toLocaleDateString("pt-BR") : "",
         "Nível de Estresse": f.responses?.stressLevel ?? "",
@@ -78,7 +102,6 @@ export function AdminDashboard() {
         "Comentários": f.responses?.additionalComments ?? ""
       }))
 
-      // Resumo que fica no topo da planilha
       const summary = [
         ["Resumo de Bem-estar"],
         ["Total de Respostas", stats?.totalResponses ?? rows.length],
@@ -88,23 +111,19 @@ export function AdminDashboard() {
         []
       ]
 
-      // Cria worksheet a partir do summary (AOA)
       const worksheet = XLSX.utils.aoa_to_sheet(summary)
 
-      // Adiciona os dados a partir da linha 8 (índice A8)
       XLSX.utils.sheet_add_json(worksheet, rows, {
         origin: "A8",
         header: headers,
         skipHeader: false
       })
 
-      // Ajusta o range e aplica estilo no cabeçalho (linha 8 => r = 7)
       const range = XLSX.utils.decode_range(worksheet["!ref"]!)
       const headerRowIndex = 7 // 0-indexed, linha 8 visual
       for (let C = range.s.c; C <= range.e.c; ++C) {
         const cellAddress = XLSX.utils.encode_cell({ r: headerRowIndex, c: C })
         if (!worksheet[cellAddress]) continue
-        // estilo básico do cabeçalho: azul escuro e texto branco, negrito, centralizado
         worksheet[cellAddress].s = {
           fill: { fgColor: { rgb: "1E3A8A" } },
           font: { color: { rgb: "FFFFFF" }, bold: true },
@@ -112,26 +131,21 @@ export function AdminDashboard() {
         }
       }
 
-      // Larguras mais compactas (menos espaçamento)
-      // Defina um array com larguras menores para evitar 'muito espaçado'
       worksheet["!cols"] = [
-        { wch: 16 }, // Data de Envio
-        { wch: 18 }, // Nível de Estresse
-        { wch: 18 }, // Equilíbrio Vida-Trabalho
-        { wch: 18 }, // Satisfação no Trabalho
-        { wch: 18 }, // Bem-estar Mental
-        { wch: 16 }, // Qualidade do Sono
-        { wch: 30 }, // Sintomas Físicos (pode ser maior)
-        { wch: 16 }, // Reconhecimento
-        { wch: 30 }, // Sugestões de Melhoria
-        { wch: 30 }  // Comentários
+        { wch: 16 },
+        { wch: 18 },
+        { wch: 18 },
+        { wch: 18 },
+        { wch: 18 },
+        { wch: 16 },
+        { wch: 30 },
+        { wch: 16 },
+        { wch: 30 },
+        { wch: 30 }
       ]
 
-      // Cria workbook e adiciona a aba "Feedbacks"
       const workbook = XLSX.utils.book_new()
       XLSX.utils.book_append_sheet(workbook, worksheet, "Feedbacks")
-
-      // Escreve o arquivo
       XLSX.writeFile(workbook, "feedbacks_bemestar.xlsx", { compression: true })
     }).catch(err => {
       console.error("Erro ao gerar Excel:", err)
@@ -146,25 +160,52 @@ export function AdminDashboard() {
 
   return (
     <div className="space-y-8">
-      {/* Header Actions */}
-      <div className="flex items-center justify-between">
+      {/* Header Actions - agrupados em toolbar limpo */}
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold text-balance">Insights de Bem-estar</h2>
           <p className="text-muted-foreground">Monitore a saúde mental e satisfação da sua equipe</p>
         </div>
-        <div className="flex gap-2">
+
+        {/* Toolbar: mantém os botões originais, organizados sem duplicar */}
+        <div role="toolbar" aria-label="Ações do dashboard" className="flex items-center gap-2 flex-wrap">
           {feedbacks.length === 0 && (
-            <Button variant="outline" onClick={loadSampleData}>
+            <Button variant="outline" onClick={loadSampleData} aria-label="Carregar dados de exemplo">
               Carregar Dados de Exemplo
             </Button>
           )}
-          <Button variant="outline" onClick={refreshData} disabled={isLoading}>
+
+          <Button
+            variant="outline"
+            onClick={refreshData}
+            disabled={isLoading}
+            aria-label="Atualizar dados"
+            title={isLoading ? "Atualizando..." : "Atualizar"}
+          >
             <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
             {isLoading ? "Atualizando..." : "Atualizar"}
           </Button>
-          <Button variant="default" onClick={exportToExcel} disabled={feedbacks.length === 0}>
+
+          <Button
+            variant="default"
+            onClick={exportToExcel}
+            disabled={feedbacks.length === 0}
+            aria-label="Exportar para Excel"
+            title="Exportar para Excel"
+          >
             <Download className="w-4 h-4 mr-2" />
             Exportar Excel
+          </Button>
+
+          {/* Botão que abre o modal do Simulador */}
+          <Button
+            variant="outline"
+            onClick={() => setIsSimulatorOpen(true)}
+            aria-label="Abrir simulador de intervenção"
+            title="Abrir Simulador de Intervenção"
+          >
+            <BarChart className="w-4 h-4 mr-2" />
+            Simulador
           </Button>
         </div>
       </div>
@@ -172,7 +213,7 @@ export function AdminDashboard() {
       {/* Stats Overview */}
       <StatsOverview stats={stats} />
 
-      {/* Main Content Tabs */}
+      {/* Main Content Tabs (não mudamos as tabs originais) */}
       <Tabs defaultValue="overview" className="space-y-6">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="overview" className="flex items-center gap-2">
@@ -204,9 +245,7 @@ export function AdminDashboard() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="text-center">
-                <Button onClick={loadSampleData} size="lg">
-                  Carregar Dados de Exemplo
-                </Button>
+                <Button onClick={loadSampleData} size="lg">Carregar Dados de Exemplo</Button>
               </CardContent>
             </Card>
           ) : (
@@ -218,9 +257,7 @@ export function AdminDashboard() {
                     <AlertTriangle className="w-5 h-5 text-orange-500" />
                     Alertas de Risco
                   </CardTitle>
-                  <CardDescription>
-                    Colaboradores que podem estar em risco de burnout
-                  </CardDescription>
+                  <CardDescription>Colaboradores que podem estar em risco de burnout</CardDescription>
                 </CardHeader>
                 <CardContent>
                   {stats.burnoutRisk > 30 ? (
@@ -240,21 +277,15 @@ export function AdminDashboard() {
                         <span className="text-sm font-medium">Risco Moderado</span>
                         <Badge variant="secondary">{stats.burnoutRisk}%</Badge>
                       </div>
-                      <p className="text-sm text-muted-foreground">
-                        Alguns colaboradores podem precisar de atenção adicional.
-                      </p>
+                      <p className="text-sm text-muted-foreground">Alguns colaboradores podem precisar de atenção adicional.</p>
                     </div>
                   ) : (
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium">Risco Baixo</span>
-                        <Badge variant="default" className="bg-green-500">
-                          {stats.burnoutRisk}%
-                        </Badge>
+                        <Badge variant="default" className="bg-green-500">{stats.burnoutRisk}%</Badge>
                       </div>
-                      <p className="text-sm text-muted-foreground">
-                        A maioria dos colaboradores está bem. Continue monitorando.
-                      </p>
+                      <p className="text-sm text-muted-foreground">A maioria dos colaboradores está bem. Continue monitorando.</p>
                     </div>
                   )}
                 </CardContent>
@@ -272,31 +303,21 @@ export function AdminDashboard() {
                 <CardContent>
                   <div className="space-y-3">
                     {stats.averageStress >= 4 && (
-                      <div className="p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg">
-                        <p className="text-sm font-medium text-orange-800 dark:text-orange-200">
-                          Nível de estresse elevado
-                        </p>
-                        <p className="text-xs text-orange-600 dark:text-orange-300">
-                          Considere implementar programas de redução de estresse
-                        </p>
+                      <div className="p-3 bg-orange-50 rounded-lg">
+                        <p className="text-sm font-medium text-orange-800">Nível de estresse elevado</p>
+                        <p className="text-xs text-orange-600">Considere implementar programas de redução de estresse</p>
                       </div>
                     )}
                     {stats.satisfactionScore <= 2.5 && (
-                      <div className="p-3 bg-red-50 dark:bg-red-950/20 rounded-lg">
-                        <p className="text-sm font-medium text-red-800 dark:text-red-200">
-                          Baixa satisfação no trabalho
-                        </p>
-                        <p className="text-xs text-red-600 dark:text-red-300">
-                          Revise processos e oportunidades de crescimento
-                        </p>
+                      <div className="p-3 bg-red-50 rounded-lg">
+                        <p className="text-sm font-medium text-red-800">Baixa satisfação no trabalho</p>
+                        <p className="text-xs text-red-600">Revise processos e oportunidades de crescimento</p>
                       </div>
                     )}
                     {stats.burnoutRisk < 15 && stats.satisfactionScore > 3.5 && (
-                      <div className="p-3 bg-green-50 dark:bg-green-950/20 rounded-lg">
-                        <p className="text-sm font-medium text-green-800 dark:text-green-200">Equipe saudável</p>
-                        <p className="text-xs text-green-600 dark:text-green-300">
-                          Continue as práticas atuais e monitore regularmente
-                        </p>
+                      <div className="p-3 bg-green-50 rounded-lg">
+                        <p className="text-sm font-medium text-green-800">Equipe saudável</p>
+                        <p className="text-xs text-green-600">Continue as práticas atuais e monitore regularmente</p>
                       </div>
                     )}
                   </div>
@@ -307,6 +328,7 @@ export function AdminDashboard() {
         </TabsContent>
 
         <TabsContent value="charts">
+          {/* mantém apenas o FeedbackCharts aqui (sem Heatmap) */}
           <FeedbackCharts feedbacks={feedbacks} />
         </TabsContent>
 
@@ -327,9 +349,7 @@ export function AdminDashboard() {
                     <div>
                       <h4 className="font-medium mb-2">Principais Preocupações</h4>
                       <ul className="space-y-1 text-sm text-muted-foreground">
-                        <li>
-                          • Carga de trabalho excessiva mencionada por {Math.round(Math.random() * 40 + 20)}% dos respondentes
-                        </li>
+                        <li>• Carga de trabalho excessiva mencionada por {Math.round(Math.random() * 40 + 20)}% dos respondentes</li>
                         <li>• Falta de flexibilidade no horário é uma queixa comum</li>
                         <li>• Necessidade de mais reconhecimento profissional</li>
                       </ul>
@@ -355,15 +375,59 @@ export function AdminDashboard() {
                     </div>
                   </>
                 ) : (
-                  <p className="text-muted-foreground">
-                    Insights detalhados aparecerão aqui quando houver dados suficientes.
-                  </p>
+                  <p className="text-muted-foreground">Insights detalhados aparecerão aqui quando houver dados suficientes.</p>
                 )}
               </div>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* SEÇÃO SEPARADA: Heatmap */}
+      <div>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart className="w-5 h-5" />
+              Heatmap de Estresse
+            </CardTitle>
+            <CardDescription>Visão separada para detectar padrões semanais por dia da semana</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Heatmap weeks={2} />
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* SIMULATOR MODAL */}
+      {isSimulatorOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        >
+          {/* overlay */}
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setIsSimulatorOpen(false)}
+          />
+
+          {/* modal panel */}
+          <div className="relative z-10 w-full max-w-3xl bg-white dark:bg-slate-900 rounded-lg shadow-lg overflow-auto max-h-[90vh]">
+            <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Simulador de Intervenção</h3>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" onClick={() => setIsSimulatorOpen(false)}>Fechar</Button>
+              </div>
+            </div>
+
+            <div className="p-4">
+              {/* Componente do simulador */}
+              <InterventionSimulator />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

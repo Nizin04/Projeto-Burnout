@@ -8,6 +8,7 @@ import { FeedbackForm } from "@/components/feedback-form"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, Heart, ClipboardList } from "lucide-react"
+import { DailyRecommendationCard } from "@/components/daily-recommendation-card"
 
 export default function FeedbackPage() {
   const [user, setUser] = useState(getCurrentUser())
@@ -61,6 +62,15 @@ export default function FeedbackPage() {
     return { text: "Boa saúde emocional 😊", color: "bg-green-100 text-green-700" }
   }
 
+  // Helper para ordenar feedbacks (mais recentes primeiro) com segurança
+  const sortedFeedbacks = userFeedbacks
+    .slice()
+    .sort((a, b) => {
+      const ta = a?.submittedAt ? new Date(a.submittedAt).getTime() : 0
+      const tb = b?.submittedAt ? new Date(b.submittedAt).getTime() : 0
+      return tb - ta
+    })
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-card">
       <div className="container mx-auto px-4 py-8">
@@ -79,6 +89,11 @@ export default function FeedbackPage() {
               <p className="text-sm text-muted-foreground">Olá, {user.name}</p>
             </div>
           </div>
+        </div>
+
+        {/* Recomendaçao do Dia - INSERIDO AQUI */}
+        <div className="mb-6">
+          <DailyRecommendationCard userId={user.id} />
         </div>
 
         {/* Troca entre modo visualização e formulário */}
@@ -107,39 +122,37 @@ export default function FeedbackPage() {
                 <CardDescription>Veja como está seu bem-estar ao longo do tempo</CardDescription>
               </CardHeader>
               <CardContent>
-                {userFeedbacks.length === 0 ? (
+                {sortedFeedbacks.length === 0 ? (
                   <p className="text-muted-foreground text-center py-6">
                     Você ainda não enviou nenhum feedback.
                   </p>
                 ) : (
                   <div className="space-y-4">
-                    {userFeedbacks
-                      .sort((a, b) => b.submittedAt - a.submittedAt)
-                      .map((f) => {
-                        const level = getBurnoutLevel(f)
-                        return (
-                          <Card key={f.id} className="p-4">
-                            <div className="flex justify-between items-center mb-2">
-                              <span className="text-sm text-muted-foreground">
-                                {new Date(f.submittedAt).toLocaleDateString("pt-BR")}
-                              </span>
-                              <span className={`text-xs font-medium px-2 py-1 rounded-full ${level.color}`}>
-                                {level.text}
-                              </span>
-                            </div>
-                            <p className="text-sm text-muted-foreground">
-                              <strong>Estresse:</strong> {f.responses.stressLevel} |{" "}
-                              <strong>Equilíbrio:</strong> {f.responses.workLifeBalance} |{" "}
-                              <strong>Satisfação:</strong> {f.responses.jobSatisfaction}
+                    {sortedFeedbacks.map((f) => {
+                      const level = getBurnoutLevel(f)
+                      return (
+                        <Card key={f.id} className="p-4">
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-sm text-muted-foreground">
+                              {f.submittedAt ? new Date(f.submittedAt).toLocaleDateString("pt-BR") : "—"}
+                            </span>
+                            <span className={`text-xs font-medium px-2 py-1 rounded-full ${level.color}`}>
+                              {level.text}
+                            </span>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            <strong>Estresse:</strong> {f.responses.stressLevel} |{" "}
+                            <strong>Equilíbrio:</strong> {f.responses.workLifeBalance} |{" "}
+                            <strong>Satisfação:</strong> {f.responses.jobSatisfaction}
+                          </p>
+                          {f.responses.additionalComments && (
+                            <p className="mt-2 italic text-sm text-muted-foreground">
+                              “{f.responses.additionalComments}”
                             </p>
-                            {f.responses.additionalComments && (
-                              <p className="mt-2 italic text-sm text-muted-foreground">
-                                “{f.responses.additionalComments}”
-                              </p>
-                            )}
-                          </Card>
-                        )
-                      })}
+                          )}
+                        </Card>
+                      )
+                    })}
                   </div>
                 )}
               </CardContent>

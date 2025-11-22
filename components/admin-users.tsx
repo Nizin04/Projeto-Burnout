@@ -10,6 +10,10 @@ export default function AdminUsers() {
   const [editing, setEditing] = useState<any | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
 
+  // estado para confirmação de exclusão
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [userToDelete, setUserToDelete] = useState<any | null>(null)
+
   useEffect(() => {
     const raw = localStorage.getItem("mockUsers") || localStorage.getItem("users") || "[]"
     try { setUsers(JSON.parse(raw)) } catch { setUsers([]) }
@@ -21,9 +25,15 @@ export default function AdminUsers() {
     setUsers(next)
   }
 
-  const removeUser = (idOrEmail: string) => {
-    const next = users.filter(u => u.id !== idOrEmail && u.email !== idOrEmail)
+  const removeUser = () => {
+    if (!userToDelete) return
+    const next = users.filter(u =>
+      u.id !== userToDelete.id && u.email !== userToDelete.email
+    )
     writeUsers(next)
+
+    setConfirmOpen(false)
+    setUserToDelete(null)
   }
 
   const saveEdit = () => {
@@ -49,15 +59,34 @@ export default function AdminUsers() {
         <table className="w-full">
           <thead><tr><th>Nome</th><th>Email</th><th>Tipo</th><th>Ações</th></tr></thead>
           <tbody>
-            {users.length === 0 && <tr><td colSpan={4} className="py-4 text-center text-muted-foreground">Nenhum usuário</td></tr>}
+            {users.length === 0 && (
+              <tr>
+                <td colSpan={4} className="py-4 text-center text-muted-foreground">
+                  Nenhum usuário
+                </td>
+              </tr>
+            )}
+
             {users.map((u:any) => (
               <tr key={u.id || u.email} className="border-t">
                 <td>{u.name}</td>
                 <td>{u.email}</td>
                 <td>{u.type ?? "employee"}</td>
                 <td className="space-x-2">
-                  <Button size="sm" onClick={() => { setEditing(u); setDialogOpen(true) }}>Editar</Button>
-                  <Button size="sm" variant="destructive" onClick={() => removeUser(u.id || u.email)}>Excluir</Button>
+                  <Button size="sm" onClick={() => { setEditing(u); setDialogOpen(true) }}>
+                    Editar
+                  </Button>
+
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => {
+                      setUserToDelete(u)
+                      setConfirmOpen(true)
+                    }}
+                  >
+                    Excluir
+                  </Button>
                 </td>
               </tr>
             ))}
@@ -65,19 +94,48 @@ export default function AdminUsers() {
         </table>
       </div>
 
+      {/* Modal de Edição */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Editar usuário</DialogTitle></DialogHeader>
           {editing && (
             <div className="space-y-3">
-              <div><label className="block text-sm">Nome</label><Input value={editing.name} onChange={(e:any)=>setEditing({...editing, name: e.target.value})} /></div>
-              <div><label className="block text-sm">Email</label><Input value={editing.email} onChange={(e:any)=>setEditing({...editing, email: e.target.value})} /></div>
+              <div>
+                <label className="block text-sm">Nome</label>
+                <Input value={editing.name} onChange={(e)=>setEditing({...editing, name: e.target.value})} />
+              </div>
+              <div>
+                <label className="block text-sm">Email</label>
+                <Input value={editing.email} onChange={(e)=>setEditing({...editing, email: e.target.value})} />
+              </div>
               <div className="flex justify-end gap-2">
                 <Button onClick={() => { setDialogOpen(false); setEditing(null) }}>Cancelar</Button>
                 <Button onClick={saveEdit}>Salvar</Button>
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Confirmação de Exclusão */}
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar exclusão</DialogTitle>
+          </DialogHeader>
+
+          <p className="mt-2">
+            Tem certeza que deseja excluir{" "}
+            <strong>{userToDelete?.name}</strong>? <br />
+            Essa ação não pode ser desfeita.
+          </p>
+
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => setConfirmOpen(false)}>Cancelar</Button>
+            <Button variant="destructive" onClick={removeUser}>
+              Excluir definitivamente
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
